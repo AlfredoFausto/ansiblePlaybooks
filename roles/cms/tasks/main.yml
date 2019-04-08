@@ -1,0 +1,16 @@
+---
+
+- name: Install Java
+  yum: name=java state=present
+
+- name: Prepare jenkins installation
+  command: wget -O /etc/yum.repos.d/jenkins.repo http://pkg.jenkins-ci.org/redhat/jenkins.repo
+  command: rpm --import https://jenkins-ci.org/redhat/jenkins-ci.org.key
+
+- name: Install jenkins
+  yum: name=jenkins state=present
+  notify:
+    - start jenkins
+
+- name: Restore jobs
+  command: aws s3 cp your_s3_bucket /var/lib/jenkins/jobs/

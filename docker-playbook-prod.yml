@@ -1,0 +1,42 @@
+#This is very similar to the dev playbook, in this scenario, it uses the image that was created and pushed to the registry
+#instead of build an image again
+---
+- hosts: your_host
+  vars:
+    DB_PORT: 3306
+    IMAGE_NAME: wordpress:Dockerfile
+    REGISTRY: your_registry
+    VERSION_TAG: "{{ lookup('env', 'VERSION_TAG') }}"
+
+
+  tasks:
+
+  - name: Auth to registry
+    become: true
+    become_user: user
+    command: aws ecr get-login --region us-west-1 --no-include-email
+    register: dockerlogin
+  - debug:
+      var: dockerlogin.output
+
+  - name: Login docker
+    become: true
+    become_user: user
+    shell: "{{ dockerlogin.stdout }}"
+
+  - name:  Recreate a Wordpress container instance
+    become: true
+    become_user: user
+    docker_container:
+        name: wordpress
+        image: "{{ REGISTRY }}:v{{ VERSION_TAG }}"
+        state: started
+        recreate: yes
+        restart_policy: always
+        ports:
+          - "80:80"
+        env:
+         WORDPRESS_DB_HOST: "{{ lookup('env', 'RDS_SERVER') }}:{{ DB_PORT }}"
+         WORDPRESS_DB_USER: "{{ lookup('env', 'RDS_USER') }}"
+         WORDPRESS_DB_PASSWORD: "{{ lookup('env', 'RDS_PASSWORD') }}"
+

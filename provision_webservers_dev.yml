@@ -1,0 +1,4 @@
+---
+  - hosts: your_hosts
+    roles:
+      - role: webservers

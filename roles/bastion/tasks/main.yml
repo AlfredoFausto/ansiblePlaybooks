@@ -1,0 +1,17 @@
+---
+
+- name: Get license
+  shell: echo "license_key{{':'}} you_license" | sudo tee -a /etc/newrelic-infra.yml
+
+- name: Prepare repo
+  command: curl -o /etc/yum.repos.d/newrelic-infra.repo https://download.newrelic.com/infrastructure_agent/linux/yum/el/7/x86_64/newrelic-infra.repo
+
+- name: Install newrelic
+  yum:
+    update_cache: yes
+    disablerepo: "{{'*'}}"
+    enablerepo: newrelic-infra
+    name: newrelic-infra
+    state: present
+  notify:
+    - start newrelic-infra

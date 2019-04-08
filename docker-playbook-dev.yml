@@ -1,0 +1,73 @@
+#This example can build a docker image create a container and push to a ECR registry
+#This works in a jenkins pipeline so the env variables are passed into the pipiline to the ansible playbook
+---
+- hosts: your_host
+  vars:
+    DB_PORT: 3306
+    IMAGE_NAME: wordpress:Dockerfile
+    REGISTRY: your_registry
+    VERSION_TAG: "{{ lookup('env', 'VERSION_TAG') }}"
+
+  tasks:
+
+  - name: remove older Dockerfile
+    file:
+      path: /your/src/path/to/dockerfile
+      state: absent
+
+  - name: copy Dockerfile
+    copy:
+      src: /your/src/path/to/dockerfile
+      dest: /your/new/src/to/dockerfile
+      owner: user
+      group: user
+      mode: 0644
+      force: yes
+
+  - name: Build image
+    command: docker build --build-arg WORDPRESS_VERSION={{ VERSION_TAG }} --tag="wordpress:Dockerfile" --no-cache .
+    args:
+      chdir: /your/src/path/to/dockerfile
+
+  - name:  Recreate a Wordpress container instance
+    docker_container:
+        name: wordpress
+        image: "{{ IMAGE_NAME }}"
+        state: started
+        recreate: yes
+        restart_policy: always
+        ports:
+          - "80:80"
+        env:
+         WORDPRESS_DB_HOST: "{{ lookup('env', 'RDS_SERVER') }}:{{ DB_PORT }}"
+         WORDPRESS_DB_USER: "{{ lookup('env', 'RDS_USER') }}"
+         WORDPRESS_DB_PASSWORD: "{{ lookup('env', 'RDS_PASSWORD') }}"
+
+#If you are using a ECR registry from amazon, the user that manage the instance should have credentials to login to amazon  
+  - name: Auth to registry
+    become: true
+    become_user: user
+    command: aws ecr get-login --region us-west-1 --no-include-email
+    register: dockerlogin
+  - debug:
+      var: dockerlogin.output
+
+  - name: Login docker
+    become: true
+    become_user: ec2-user
+    shell: "{{ dockerlogin.stdout }}"
+
+  - name: version tag
+    become: true
+    become_user: user
+    docker_image:
+      name: "{{ IMAGE_NAME }}"
+      repository: "{{ REGISTRY }}:v{{ VERSION_TAG }}"
+      pull: no
+
+  - name: Push new image to registry
+    become: true
+    become_user: user
+    docker_image:
+      name: "{{ REGISTRY }}:v{{ VERSION_TAG }}"
+      push: yes

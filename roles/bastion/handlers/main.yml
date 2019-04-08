@@ -1,0 +1,6 @@
+---
+
+- name: start newrelic-infra
+  service:
+    name: newrelic-infra
+    state: started

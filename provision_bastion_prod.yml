@@ -1,0 +1,4 @@
+---
+  - hosts: your_host
+    roles:
+      - role: bastion
